@@ -4,11 +4,13 @@ use iced::executor;
 use iced::mouse;
 use iced::theme::Container;
 use iced::widget::canvas::{Cache, Geometry, Path};
+use iced::widget::text;
+use iced::widget::Row;
 use iced::widget::{canvas, container};
+use iced::Alignment;
 use iced::Color;
 use iced::Event;
 use iced::Point;
-use iced::Radians;
 use iced::Size;
 use iced::{
     Application, Command, Element, Length, Rectangle, Renderer, Settings, Subscription, Theme,
@@ -24,9 +26,9 @@ pub fn main() -> iced::Result {
         window: iced::window::Settings {
             transparent: true,
             decorations: false,
-            resizable: false,
+            resizable: true,
             size: Size {
-                width: 400.0,
+                width: 600.0,
                 height: 400.0,
             },
             ..Default::default()
@@ -42,12 +44,14 @@ struct Clock {
     minutes_color: Color,
     hours_color: Color,
     text_color: Color,
+    is_settings_open: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
 enum Message {
     Tick(time::OffsetDateTime),
     MouseClicked,
+    RightClick,
 }
 
 impl Application for Clock {
@@ -66,6 +70,7 @@ impl Application for Clock {
                 minutes_color: Color::TRANSPARENT,
                 seconds_color: Color::from_rgba(245.0 / 255.0, 40.0 / 255.0, 145.0 / 255.0, 0.4),
                 text_color: Color::WHITE,
+                is_settings_open: false,
             },
             Command::none(),
         )
@@ -87,32 +92,58 @@ impl Application for Clock {
             }
 
             Message::MouseClicked => iced::window::drag(iced::window::Id::MAIN),
+            Message::RightClick => {
+                self.is_settings_open = !self.is_settings_open;
+                // iced::window::resize(
+                //     iced::window::Id::MAIN,
+                //     Size {
+                //         height: 600.0,
+                //         width: 800.0,
+                //     },
+                // )
+                Command::none()
+            }
         }
     }
 
     fn view(&self) -> Element<Message> {
-        let canvas = canvas(self as &Self)
+        let clock = canvas(self as &Self)
             .width(Length::Fill)
             .height(Length::Fill);
 
-        container(canvas)
+        let cc = container(clock)
             .style(Container::Transparent)
+            .align_x(Horizontal::Left)
+            .align_y(Vertical::Top)
             .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(20)
-            .into()
+            .height(Length::Fill);
+        let main_container = Row::new().width(Length::Fill).height(Length::Fill).push(cc);
+        if self.is_settings_open {
+            main_container
+                .push(
+                    container(text("hellop"))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .style(Container::Box)
+                        .align_y(Vertical::Center)
+                        .align_x(Horizontal::Center),
+                )
+                .into()
+        } else {
+            main_container.into()
+        }
     }
 
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             iced::event::listen_with(|event, _status| match event {
-                Event::Mouse(e) => {
-                    if let mouse::Event::ButtonPressed(mouse::Button::Left) = e {
+                Event::Mouse(e) => match e {
+                    mouse::Event::ButtonPressed(mouse::Button::Middle) => {
                         Some(Message::MouseClicked)
-                    } else {
-                        None
                     }
-                }
+                    mouse::Event::ButtonReleased(mouse::Button::Right) => Some(Message::RightClick),
+                    _ => None,
+                },
                 _ => None,
             }),
             iced::time::every(std::time::Duration::from_millis(500)).map(|_| {
@@ -128,7 +159,7 @@ impl Application for Clock {
             "Custom".to_string(),
             iced::theme::Palette {
                 background: Color::TRANSPARENT,
-                ..Theme::Dracula.palette()
+                ..Theme::Dark.palette()
             },
         )
     }
@@ -180,20 +211,20 @@ impl<Message> canvas::Program<Message> for Clock {
             builder.arc(canvas::path::Arc {
                 center: frame.center(),
                 radius: radius - bar_height,
-                start_angle: Radians(PI * 1.5),
-                end_angle: Radians(circle_rotation(self.now.second(), 60)),
+                start_angle: PI * 1.5,
+                end_angle: circle_rotation(self.now.second(), 60),
             });
             builder2.arc(canvas::path::Arc {
                 center: frame.center(),
                 radius: radius - bar_height * 2.0,
-                start_angle: Radians(PI * 1.5),
-                end_angle: Radians(circle_rotation(self.now.minute(), 60)),
+                start_angle: PI * 1.5,
+                end_angle: circle_rotation(self.now.minute(), 60),
             });
             builder3.arc(canvas::path::Arc {
                 center: frame.center(),
                 radius: radius - (bar_height * 2.0) - bar_height,
-                start_angle: Radians(PI * 1.5),
-                end_angle: Radians(circle_rotation(get_hr(self.now.hour()), 12)),
+                start_angle: PI * 1.5,
+                end_angle: circle_rotation(get_hr(self.now.hour()), 12),
             });
             let (hrs, min, _sec) = self.now.time().as_hms();
 
@@ -211,7 +242,7 @@ impl<Message> canvas::Program<Message> for Clock {
             let date_text = canvas::Text {
                 content: date.format(&format).unwrap(),
                 color: Color::WHITE,
-                size: text.size * 0.4,
+                size: ((radius / 3.0) * 0.4).into(),
                 position: Point::new(frame.center().x, frame.center().y + radius / 4.5),
                 horizontal_alignment: Horizontal::Center,
                 vertical_alignment: Vertical::Center,
