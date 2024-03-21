@@ -1,20 +1,19 @@
+use iced::advanced::Application;
 use iced::alignment::Horizontal;
 use iced::alignment::Vertical;
 use iced::executor;
 use iced::mouse;
-use iced::theme::Container;
+use iced::widget::button;
 use iced::widget::canvas::{Cache, Geometry, Path};
-use iced::widget::text;
-use iced::widget::Row;
+use iced::widget::slider;
 use iced::widget::{canvas, container};
-use iced::Alignment;
+use iced::widget::{column, Row};
 use iced::Color;
 use iced::Event;
 use iced::Point;
+use iced::Radians;
 use iced::Size;
-use iced::{
-    Application, Command, Element, Length, Rectangle, Renderer, Settings, Subscription, Theme,
-};
+use iced::{Command, Element, Length, Rectangle, Renderer, Settings, Subscription, Theme};
 use std::f32::consts::PI;
 use time::format_description;
 use time::macros::offset;
@@ -28,7 +27,7 @@ pub fn main() -> iced::Result {
             decorations: false,
             resizable: true,
             size: Size {
-                width: 600.0,
+                width: 400.0,
                 height: 400.0,
             },
             ..Default::default()
@@ -45,6 +44,7 @@ struct Clock {
     hours_color: Color,
     text_color: Color,
     is_settings_open: bool,
+    color_r: u16,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -52,6 +52,7 @@ enum Message {
     Tick(time::OffsetDateTime),
     MouseClicked,
     RightClick,
+    MessageColor(u16),
 }
 
 impl Application for Clock {
@@ -71,6 +72,7 @@ impl Application for Clock {
                 seconds_color: Color::from_rgba(245.0 / 255.0, 40.0 / 255.0, 145.0 / 255.0, 0.4),
                 text_color: Color::WHITE,
                 is_settings_open: false,
+                color_r: 125,
             },
             Command::none(),
         )
@@ -94,13 +96,20 @@ impl Application for Clock {
             Message::MouseClicked => iced::window::drag(iced::window::Id::MAIN),
             Message::RightClick => {
                 self.is_settings_open = !self.is_settings_open;
-                // iced::window::resize(
-                //     iced::window::Id::MAIN,
-                //     Size {
-                //         height: 600.0,
-                //         width: 800.0,
-                //     },
-                // )
+                iced::window::resize(
+                    iced::window::Id::MAIN,
+                    Size {
+                        height: 400.0,
+                        width: 800.0,
+                    },
+                )
+                // Command::none()
+            }
+            Message::MessageColor(c) => {
+                self.color_r = c;
+                println!("{:?}", c);
+                self.seconds_color =
+                    Color::from_rgba(c as f32 / 255.0, 40.0 / 255.0, 145.0 / 255.0, 0.4);
                 Command::none()
             }
         }
@@ -112,19 +121,21 @@ impl Application for Clock {
             .height(Length::Fill);
 
         let cc = container(clock)
-            .style(Container::Transparent)
+            // .style(container::bordered_box)
             .align_x(Horizontal::Left)
             .align_y(Vertical::Top)
-            .width(Length::Fill)
+            .width(Length::FillPortion(2))
             .height(Length::Fill);
         let main_container = Row::new().width(Length::Fill).height(Length::Fill).push(cc);
         if self.is_settings_open {
+            let h_slider =
+                container(slider(0..=255, self.color_r, Message::MessageColor)).width(250);
             main_container
                 .push(
-                    container(text("hellop"))
-                        .width(Length::Fill)
+                    container(column![button("text"), h_slider])
+                        .width(Length::FillPortion(3))
                         .height(Length::Fill)
-                        .style(Container::Box)
+                        .style(container::rounded_box)
                         .align_y(Vertical::Center)
                         .align_x(Horizontal::Center),
                 )
@@ -208,23 +219,24 @@ impl<Message> canvas::Program<Message> for Clock {
             let mut builder = canvas::path::Builder::new();
             let mut builder2 = canvas::path::Builder::new();
             let mut builder3 = canvas::path::Builder::new();
+            let offset_angle = Radians(PI * 1.5);
             builder.arc(canvas::path::Arc {
                 center: frame.center(),
                 radius: radius - bar_height,
-                start_angle: PI * 1.5,
-                end_angle: circle_rotation(self.now.second(), 60),
+                start_angle: offset_angle,
+                end_angle: Radians(circle_rotation(self.now.second(), 60)),
             });
             builder2.arc(canvas::path::Arc {
                 center: frame.center(),
                 radius: radius - bar_height * 2.0,
-                start_angle: PI * 1.5,
-                end_angle: circle_rotation(self.now.minute(), 60),
+                start_angle: offset_angle,
+                end_angle: Radians(circle_rotation(self.now.minute(), 60)),
             });
             builder3.arc(canvas::path::Arc {
                 center: frame.center(),
                 radius: radius - (bar_height * 2.0) - bar_height,
-                start_angle: PI * 1.5,
-                end_angle: circle_rotation(get_hr(self.now.hour()), 12),
+                start_angle: offset_angle,
+                end_angle: Radians(circle_rotation(get_hr(self.now.hour()), 12)),
             });
             let (hrs, min, _sec) = self.now.time().as_hms();
 

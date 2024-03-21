@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced = { git = "https://github.com/pop-os/iced.git",  features = [
+iced = { git = "https://github.com/iced-rs/iced.git",   features = [
     "canvas",
+    "advanced",
     "tokio",
-    "winit"
 ] }
-iced_aw = { version = "0.8.0", features = [
-    "modal",
-] }
+# iced_aw = { version = "0.8.0", features = [
+#     "modal",
+# ] }
 time = { version = "0.3.34", features = ["local-offset", "formatting", "macros"] }
