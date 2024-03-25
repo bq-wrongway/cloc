@@ -5,7 +5,9 @@ use iced::executor;
 use iced::mouse;
 use iced::widget::button;
 use iced::widget::canvas::{Cache, Geometry, Path};
+use iced::widget::row;
 use iced::widget::slider;
+use iced::widget::text;
 use iced::widget::{canvas, container};
 use iced::widget::{column, Row};
 use iced::Color;
@@ -44,7 +46,11 @@ struct Clock {
     hours_color: Color,
     text_color: Color,
     is_settings_open: bool,
-    color_r: u16,
+    color_r: u8,
+    color_g: u8,
+    color_b: u8,
+    opacity: f32,
+    temp_color: Color,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -52,7 +58,14 @@ enum Message {
     Tick(time::OffsetDateTime),
     MouseClicked,
     RightClick,
-    MessageColor(u16),
+    ColorRed(u8),
+    ColorGreen(u8),
+    ColorBlue(u8),
+    Opacity(f32),
+    Seconds,
+    Minutes,
+    Hours,
+    Resize,
 }
 
 impl Application for Clock {
@@ -67,12 +80,16 @@ impl Application for Clock {
                 now: time::OffsetDateTime::now_local()
                     .unwrap_or_else(|_| time::OffsetDateTime::now_utc().to_offset(offset!(+1))),
                 clock: Cache::default(),
-                hours_color: Color::WHITE,
-                minutes_color: Color::TRANSPARENT,
+                hours_color: Color::from_rgba(45.0 / 255.0, 140.0 / 255.0, 5.0 / 255.0, 0.4),
+                minutes_color: Color::from_rgba(45.0 / 255.0, 40.0 / 255.0, 245.0 / 255.0, 0.4),
                 seconds_color: Color::from_rgba(245.0 / 255.0, 40.0 / 255.0, 145.0 / 255.0, 0.4),
                 text_color: Color::WHITE,
                 is_settings_open: false,
                 color_r: 125,
+                color_g: 125,
+                color_b: 125,
+                opacity: 1.0,
+                temp_color: Color::from_rgba(245.0 / 255.0, 250.0 / 255.0, 145.0 / 255.0, 0.4),
             },
             Command::none(),
         )
@@ -96,20 +113,98 @@ impl Application for Clock {
             Message::MouseClicked => iced::window::drag(iced::window::Id::MAIN),
             Message::RightClick => {
                 self.is_settings_open = !self.is_settings_open;
-                iced::window::resize(
-                    iced::window::Id::MAIN,
-                    Size {
-                        height: 400.0,
-                        width: 800.0,
-                    },
-                )
-                // Command::none()
+                // iced::window::resize(
+                //     iced::window::Id::MAIN,
+                //     Size {
+                //         height: 400.0,
+                //         width: 800.0,
+                //     },
+                // )
+                Command::none()
             }
-            Message::MessageColor(c) => {
+            Message::Resize => iced::window::resize(
+                iced::window::Id::MAIN,
+                Size {
+                    height: 300.0,
+                    width: 300.0,
+                },
+            ),
+            Message::ColorRed(c) => {
                 self.color_r = c;
-                println!("{:?}", c);
-                self.seconds_color =
-                    Color::from_rgba(c as f32 / 255.0, 40.0 / 255.0, 145.0 / 255.0, 0.4);
+                // println!("{:?}", c);
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+
+                Command::none()
+            }
+            Message::ColorGreen(g) => {
+                self.color_g = g;
+                // println!("{:?}", c);
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+
+                Command::none()
+            }
+            Message::ColorBlue(b) => {
+                self.color_b = b;
+                // println!("{:?}", c);
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+                Command::none()
+            }
+            Message::Opacity(o) => {
+                self.opacity = o;
+                // println!("{:?}", c);
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+                Command::none()
+            }
+            Message::Seconds => {
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+
+                self.seconds_color = self.temp_color;
+
+                Command::none()
+            }
+            Message::Minutes => {
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+                self.minutes_color = self.temp_color;
+                Command::none()
+            }
+            Message::Hours => {
+                self.temp_color = Color::from_rgba(
+                    self.color_r as f32 / 255.0,
+                    self.color_g as f32 / 255.0,
+                    self.color_b as f32 / 255.0,
+                    self.opacity,
+                );
+                self.hours_color = self.temp_color;
                 Command::none()
             }
         }
@@ -126,23 +221,66 @@ impl Application for Clock {
             .align_y(Vertical::Top)
             .width(Length::FillPortion(2))
             .height(Length::Fill);
-        let main_container = Row::new().width(Length::Fill).height(Length::Fill).push(cc);
-        if self.is_settings_open {
-            let h_slider =
-                container(slider(0..=255, self.color_r, Message::MessageColor)).width(250);
-            main_container
-                .push(
-                    container(column![button("text"), h_slider])
-                        .width(Length::FillPortion(3))
-                        .height(Length::Fill)
-                        .style(container::rounded_box)
-                        .align_y(Vertical::Center)
-                        .align_x(Horizontal::Center),
-                )
-                .into()
-        } else {
-            main_container.into()
-        }
+        let h_slider = row![
+            text("R"),
+            slider(0..=255, self.color_r, Message::ColorRed),
+            text(self.color_r)
+        ]
+        .width(250);
+        let g_slider = row![
+            text("G"),
+            slider(0..=255, self.color_g, Message::ColorGreen),
+            text(self.color_g)
+        ]
+        .width(250);
+        let b_slider = row![
+            text("B"),
+            slider(0..=255, self.color_b, Message::ColorBlue),
+            text(self.color_b)
+        ]
+        .width(250);
+        let o_slider = row![
+            text("O"),
+            slider(0.0..=1.0, self.opacity, Message::Opacity)
+                .step(0.1)
+                .shift_step(0.1),
+            text(self.opacity)
+        ]
+        .width(250);
+        let main_container = Row::new()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .push(cc)
+            .push_maybe(
+                self.is_settings_open.then_some(
+                    container(
+                        column![
+                            container(text(""))
+                                .style(|_theme, _status| { self.temp_color.into() })
+                                .width(Length::Fill)
+                                .height(30),
+                            h_slider,
+                            g_slider,
+                            b_slider,
+                            o_slider,
+                            row![
+                                button("Seconds").on_press(Message::Seconds),
+                                button("Minutes").on_press(Message::Minutes),
+                                button("Hours").on_press(Message::Hours),
+                            ]
+                            .spacing(10),
+                            button("resize").on_press(Message::Resize)
+                        ]
+                        .spacing(10)
+                        .align_items(iced::Alignment::Center)
+                        .width(Length::Fill)
+                        .height(Length::Fill),
+                    )
+                    .style(|_theme, _status| Color::from_rgba(0.1, 0.3, 0.4, 0.9).into()),
+                ),
+            );
+
+        main_container.into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -194,8 +332,8 @@ impl<Message> canvas::Program<Message> for Clock {
             let radius = frame.width().min(frame.height()) / 2.0;
             let bar_height = radius * 0.15;
             let second_path = Path::circle(center, radius - bar_height);
-            let hour_path = Path::circle(center, radius - bar_height * 2.0);
-            let minute_path = Path::circle(center, radius - (bar_height * 2.0) - bar_height);
+            let minute_path = Path::circle(center, radius - bar_height * 2.0);
+            let hour_path = Path::circle(center, radius - (bar_height * 2.0) - bar_height);
 
             frame.stroke(
                 &second_path,
@@ -265,6 +403,11 @@ impl<Message> canvas::Program<Message> for Clock {
             let hours_path_bd = builder3.build();
             let mut clr = self.seconds_color;
             clr.a = 1.0;
+            let mut minclr = self.minutes_color;
+            minclr.a = 1.0;
+            let mut hrclr = self.hours_color;
+            hrclr.a = 1.0;
+
             frame.fill_text(text);
             frame.fill_text(date_text);
             frame.stroke(
@@ -276,13 +419,13 @@ impl<Message> canvas::Program<Message> for Clock {
             frame.stroke(
                 &minutes_path_bd,
                 canvas::Stroke::default()
-                    .with_color(palette.success.strong.color)
+                    .with_color(minclr)
                     .with_width(bar_height),
             );
             frame.stroke(
                 &hours_path_bd,
                 canvas::Stroke::default()
-                    .with_color(palette.primary.base.color)
+                    .with_color(hrclr)
                     .with_width(bar_height),
             );
         });
