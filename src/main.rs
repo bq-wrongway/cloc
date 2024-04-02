@@ -10,6 +10,7 @@ use iced::widget::slider;
 use iced::widget::text;
 use iced::widget::{canvas, container};
 use iced::widget::{column, Row};
+use iced::Border;
 use iced::Color;
 use iced::Event;
 use iced::Point;
@@ -28,10 +29,6 @@ pub fn main() -> iced::Result {
             transparent: true,
             decorations: false,
             resizable: true,
-            size: Size {
-                width: 400.0,
-                height: 400.0,
-            },
             ..Default::default()
         },
         ..Settings::default()
@@ -51,6 +48,7 @@ struct Clock {
     color_b: u8,
     opacity: f32,
     temp_color: Color,
+    size: Size,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,6 +64,7 @@ enum Message {
     Minutes,
     Hours,
     Resize,
+    Width(f32),
 }
 
 impl Application for Clock {
@@ -73,6 +72,7 @@ impl Application for Clock {
     type Message = Message;
     type Theme = Theme;
     type Flags = ();
+    type Renderer = Renderer;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
@@ -90,6 +90,10 @@ impl Application for Clock {
                 color_b: 125,
                 opacity: 1.0,
                 temp_color: Color::from_rgba(245.0 / 255.0, 250.0 / 255.0, 145.0 / 255.0, 0.4),
+                size: Size {
+                    height: 400.0,
+                    width: 400.0,
+                },
             },
             Command::none(),
         )
@@ -113,22 +117,25 @@ impl Application for Clock {
             Message::MouseClicked => iced::window::drag(iced::window::Id::MAIN),
             Message::RightClick => {
                 self.is_settings_open = !self.is_settings_open;
-                // iced::window::resize(
-                //     iced::window::Id::MAIN,
-                //     Size {
-                //         height: 400.0,
-                //         width: 800.0,
-                //     },
-                // )
-                Command::none()
+                if self.is_settings_open {
+                    iced::window::resize(
+                        iced::window::Id::MAIN,
+                        Size {
+                            height: 400.0,
+                            width: 800.0,
+                        },
+                    )
+                } else {
+                    iced::window::resize(
+                        iced::window::Id::MAIN,
+                        Size {
+                            height: self.size.height,
+                            width: self.size.width,
+                        },
+                    )
+                }
             }
-            Message::Resize => iced::window::resize(
-                iced::window::Id::MAIN,
-                Size {
-                    height: 300.0,
-                    width: 300.0,
-                },
-            ),
+            Message::Resize => iced::window::resize(iced::window::Id::MAIN, self.size),
             Message::ColorRed(c) => {
                 self.color_r = c;
                 // println!("{:?}", c);
@@ -207,6 +214,14 @@ impl Application for Clock {
                 self.hours_color = self.temp_color;
                 Command::none()
             }
+            Message::Width(w) => {
+                self.size = Size {
+                    width: w,
+                    height: w,
+                };
+                // self.size.width = w;
+                Command::none()
+            }
         }
     }
 
@@ -219,7 +234,7 @@ impl Application for Clock {
             // .style(container::bordered_box)
             .align_x(Horizontal::Left)
             .align_y(Vertical::Top)
-            .width(Length::FillPortion(2))
+            .width(Length::Fill)
             .height(Length::Fill);
         let h_slider = row![
             text("R"),
@@ -247,7 +262,15 @@ impl Application for Clock {
             text(self.opacity)
         ]
         .width(250);
-        let main_container = Row::new()
+        let width_slider = row![
+            text("width"),
+            slider(0.0..=1000.0, self.size.width, Message::Width)
+                .step(1.0)
+                .shift_step(1.0),
+            text(self.size.width)
+        ]
+        .width(250);
+        let main_row = Row::new()
             .width(Length::Fill)
             .height(Length::Fill)
             .push(cc)
@@ -256,13 +279,14 @@ impl Application for Clock {
                     container(
                         column![
                             container(text(""))
-                                .style(|_theme, _status| { self.temp_color.into() })
+                                .style(|_style| { self.temp_color.into() })
                                 .width(Length::Fill)
                                 .height(30),
                             h_slider,
                             g_slider,
                             b_slider,
                             o_slider,
+                            width_slider,
                             row![
                                 button("Seconds").on_press(Message::Seconds),
                                 button("Minutes").on_press(Message::Minutes),
@@ -276,9 +300,16 @@ impl Application for Clock {
                         .width(Length::Fill)
                         .height(Length::Fill),
                     )
-                    .style(|_theme, _status| Color::from_rgba(0.1, 0.3, 0.4, 0.9).into()),
+                    .style(|_style| Color::from_rgba(0.1, 0.3, 0.4, 0.9).into()),
                 ),
             );
+        let main_container = container(main_row)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_style| {
+                Border::rounded(10);
+                Color::TRANSPARENT.into()
+            });
 
         main_container.into()
     }
@@ -342,15 +373,15 @@ impl<Message> canvas::Program<Message> for Clock {
                     .with_width(bar_height),
             );
             frame.stroke(
-                &hour_path,
-                canvas::Stroke::default()
-                    .with_color(self.hours_color)
-                    .with_width(bar_height),
-            );
-            frame.stroke(
                 &minute_path,
                 canvas::Stroke::default()
                     .with_color(self.minutes_color)
+                    .with_width(bar_height),
+            );
+            frame.stroke(
+                &hour_path,
+                canvas::Stroke::default()
+                    .with_color(self.hours_color)
                     .with_width(bar_height),
             );
 
